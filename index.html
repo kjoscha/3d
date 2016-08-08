@@ -13,10 +13,8 @@
 	</head>
 	<body>
 
-		<div id="container">
-
-
-		</div>
+		<div id="container"></div>
+        <div class="camPosition"></div>
 
 	</body>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
@@ -24,137 +22,139 @@
     <script src="js/d3.min.js"></script>    
     <script src="js/d3-threeD.js"></script>
     <script src="js/Detector.js"></script>
-    <script src="js/TrackballControls.js"></script>
+    <script src="js/OrbitControls.js"></script>
 
 	<script type="text/javascript">
 
-    var scene, camera, renderer, controls;
-    var geometry, material, mesh;
+        var scene, camera, renderer, controls;
+        var geometry, material, mesh;
 
-    init();
-    animate();
+        init();
+        animate();
 
-    function init() {
+        function init() {
 
-        var $container = jQuery('#container');
+            var $container = jQuery('#container');
 
-        scene = new THREE.Scene();
+            scene = new THREE.Scene();
 
-        // plane
-        var planeGeo = new THREE.CubeGeometry(3500, 1500, 3);
-        var planeMat = new THREE.MeshLambertMaterial({
-            color: 'blue',
-            transparent: true,
-            opacity: 0,
-            wireframe: false
-        });
-        var plane = new THREE.Mesh(planeGeo, planeMat);
-        plane.rotation.x = -Math.PI/2;
-        scene.add(plane);
+            // plane
+            var planeGeo = new THREE.CubeGeometry(3500, 1500, 3);
+            var planeMat = new THREE.MeshPhongMaterial( { color: 0x00072C, specular: 'white', shininess: 1} );
+            var plane = new THREE.Mesh(planeGeo, planeMat);
+            plane.rotation.x = -Math.PI/2;
 
-        camera = new THREE.PerspectiveCamera( 80, window.innerWidth / window.innerHeight, 1, 10000 );
-        scene.add(camera);
-        camera.position.z = 80;
-        camera.position.y = 500;
-        camera.lookAt( 0,0,0 );
+            scene.add(plane);
 
-        controls = new THREE.TrackballControls( camera );
-        controls.target.set(0,0,0);
+            camera = new THREE.PerspectiveCamera( 80, window.innerWidth / window.innerHeight, 1, 10000 );
+            scene.add(camera);
+            camera.position.z = 80;
+            camera.position.y = 500;
+            camera.lookAt( 0,0,0 );
 
-        renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            alpha: true
-        });
-        renderer.setSize( $container.width(), $container.height() );
-        renderer.setClearColor(0xffffff, 1);
-
-        $container.append( renderer.domElement );
-
-        // create lights
-        var pointLight = new THREE.PointLight('white');
-        pointLight.position.x = 200;
-        pointLight.position.y = 200;
-        pointLight.position.z = 0;
-        scene.add(pointLight);
-
-        var ambLight = new THREE.AmbientLight(0x04040);
-        scene.add(ambLight);
-    };
-
-
-
-    function animate() {
-        controls.update();
-        requestAnimationFrame( animate );
-        renderer.render( scene, camera );
-    };
-
-            
-    geoConfig = function() {
-        this.mercator = d3.geo.equirectangular();
-        this.path = d3.geo.path().projection(this.mercator);
-        var translate = this.mercator.translate();
-        translate[0] = 500;
-        translate[1] = 0;
-        this.mercator.translate(translate);
-        this.mercator.scale(500);
-    };
-
-    geo = new geoConfig();
-
-    var countries = [];
-    var i, j;
-    $.when( $.getJSON("data/countries.json") ).then(function(data){ 
-        // convert to threejs meshes
-        for (i = 0 ; i < data.features.length ; i++) {
-            var geoFeature = data.features[i];
-            var properties = geoFeature.properties;
-            var feature = geo.path(geoFeature);
-            // we only need to convert it to a three.js path
-            var mesh = transformSVGPathExposed(feature);
-            // add to array
-            for (j = 0 ; j < mesh.length ; j++) {
-                  countries.push({"data": properties, "mesh": mesh[j]});
-            }
-        }
-
-        // extrude paths and add color
-        for (i = 0 ; i < countries.length ; i++) {
-        
-            // create material color based on average       
-            var material = new THREE.MeshLambertMaterial({
-                color: 'green', 
-                transparent: true,
-                opacity: Math.random()
-            }); 
-                    
-            var height = Math.random() * 100;
-
-            // extrude mesh
-            var shape3d = countries[i].mesh.extrude({
-                amount: height, 
-                bevelEnabled: false
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
             });
+            renderer.setSize( $container.width(), $container.height() );
+            renderer.setClearColor(0xffffff, 1);
 
-            // create a mesh based on material and extruded shape
-            var toAdd = new THREE.Mesh(shape3d, material);
-            
-            //set name of mesh
-            toAdd.name = countries[i].data.name;
-            
-            // rotate and position the elements nicely in the center
-            toAdd.rotation.x = Math.PI / 2;
+            $container.append( renderer.domElement );
 
-            toAdd.translateX(-490);
-            toAdd.translateZ(- height);
-            toAdd.translateY(150);
+            // create lights
+            var pointLight = new THREE.PointLight('white');
+            pointLight.position.x = 200;
+            pointLight.position.y = 200;
+            pointLight.position.z = 0;
+            scene.add(pointLight);
 
-            // add to scene
-            scene.add(toAdd);
+            var ambLight = new THREE.AmbientLight(0x04040);
+            scene.add(ambLight);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+        };
+
+
+
+        function animate() {
+            jQuery('.camPosition').html("x: " + camera.position.x + "<br> y: " + camera.position.y + "<br> z: " + camera.position.z);
+            controls.update();
+            requestAnimationFrame( animate );
+            renderer.render( scene, camera );
+        };
+
+                
+        geoConfig = function() {
+            this.mercator = d3.geo.equirectangular();
+            this.path = d3.geo.path().projection(this.mercator);
+            var translate = this.mercator.translate();
+            translate[0] = 500;
+            translate[1] = 0;
+            this.mercator.translate(translate);
+            this.mercator.scale(500);
+        };
+
+        function getRandomColor() {
+            var letters = '0123456789ABCDEF';
+            var color = '#';
+            for (var i = 0; i < 6; i++ ) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
         }
 
+        geo = new geoConfig();
+        var countries = [];
+        var i, j;
+        $.when( $.getJSON("data/countries.json") ).then(function(data){ 
+            // convert to threejs meshes
+            for (i = 0 ; i < data.features.length ; i++) {
+                var geoFeature = data.features[i];
+                var properties = geoFeature.properties;
+                var feature = geo.path(geoFeature);
+                // we only need to convert it to a three.js path
+                var mesh = transformSVGPathExposed(feature);
+                // add to array
+                for (j = 0 ; j < mesh.length ; j++) {
+                    countries.push({"data": properties, "mesh": mesh[j]});
+                }
+            }
 
-    });
+            // extrude paths and add color
+            for (i = 0 ; i < countries.length ; i++) {
+            
+                // create material color based on average       
+                var material = new THREE.MeshLambertMaterial({
+                    color:  getRandomColor(), 
+                }); 
+                        
+                var height = Math.max(20, Math.random() * 100);
+
+                // extrude mesh
+                var shape3d = countries[i].mesh.extrude({
+                    amount: height, 
+                    bevelEnabled: false
+                });
+
+                // create a mesh based on material and extruded shape
+                var toAdd = new THREE.Mesh(shape3d, material);
+                
+                //set name of mesh
+                toAdd.name = countries[i].data.name;
+                
+                // rotate and position the elements nicely in the center
+                toAdd.rotation.x = Math.PI / 2;
+
+                toAdd.translateX(-490);
+                toAdd.translateZ(- height);
+                toAdd.translateY(150);
+
+                // add to scene
+                scene.add(toAdd);
+            }
+
+
+        });
 
 	</script>
 </html>
