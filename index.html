@@ -9,11 +9,22 @@
 				width: 600px;
 				height: 600px;
 			}
+
+            .info-overlay {
+                position: absolute;
+                z-index: 9999;
+                top: 20px;
+                left: 30px;
+                color: blue;
+                font-size: 30px;
+            }
 		</style>
 	</head>
 	<body>
 
-		<div id="container"></div>
+		<div id="container">
+            <div class="info-overlay"> fgdfgdf </div>      
+        </div>
         <div class="camPosition"></div>
 
 	</body>
@@ -28,10 +39,6 @@
 
         var scene, camera, renderer, controls;
         var geometry, material, mesh;
-
-        init();
-        animate();
-
         function init() {
 
             var $container = jQuery('#container');
@@ -65,17 +72,9 @@
             scene.add(ambLight);
 
             controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+            document.addEventListener( 'mousemove', onDocumentMouseDown, false );
         };
-
-
-
-        function animate() {
-            /*jQuery('.camPosition').html("x: " + camera.position.x + "<br> y: " + camera.position.y + "<br> z: " + camera.position.z);*/
-            controls.update();
-            requestAnimationFrame( animate );
-            renderer.render( scene, camera );
-        };
-
                 
         geoConfig = function() {
             this.mercator = d3.geo.equirectangular();
@@ -100,46 +99,11 @@
             var normalized = normalize(value, min, cut_max);
           };
           var stretched = 120 * normalized;
-          return 'hsl('+stretched+',100%,50%)';
+          return 'hsl(' + stretched + ', 100%, 50%)';
         }
 
         TRANSLATE_WEST = -1400;
         TRANSLATE_SOUTH = 4500;
-
-        function addGeoFeature(json, heightFactor) {
-            geo = new geoConfig();
-            var countries = [];
-            var i, j;
-            $.when( $.getJSON(json) ).then(function(data){ 
-                for (i = 0 ; i < data.features.length ; i++) {
-                    var geoFeature = data.features[i];
-                    var properties = geoFeature.properties;
-                    var feature = geo.path(geoFeature);
-                    var mesh = transformSVGPathExposed(feature);
-                    for (j = 0 ; j < mesh.length ; j++) {
-                        countries.push({"data": properties, "mesh": mesh[j]});
-                    }
-                }
-
-                for (i = 0 ; i < countries.length ; i++) {
-                    var material = new THREE.MeshLambertMaterial({color:  hslColor(Math.random(), 0, 1, 1)}); 
-                            
-                    var height = Math.random() * heightFactor;
-                    var shape3d = countries[i].mesh.extrude({amount: height, bevelEnabled: false});
-
-                    var toAdd = new THREE.Mesh(shape3d, material);
-                    toAdd.name = countries[i].data.name;
-                    toAdd.rotation.x = Math.PI / 2;
-                    toAdd.translateX(TRANSLATE_WEST);
-                    toAdd.translateZ(- height - 3);
-                    toAdd.translateY(TRANSLATE_SOUTH);
-
-                    scene.add(toAdd);
-                }
-            });
-        };
-
-        addGeoFeature("data/kreise.geojson", 50);
 
         function addWorld(json) {
             geo = new geoConfig();
@@ -174,6 +138,78 @@
         };
 
         addWorld("data/world_countries.geojson");
+
+
+        var kreise = [];
+        function addGeoFeature(json, heightFactor, array) {
+            geo = new geoConfig();
+            var features = [];
+            var i, j;
+            $.when( $.getJSON(json) ).then(function(data){ 
+                for (i = 0 ; i < data.features.length ; i++) {
+                    var geoFeature = data.features[i];
+                    var properties = geoFeature.properties;
+                    var feature = geo.path(geoFeature);
+                    var mesh = transformSVGPathExposed(feature);
+                    for (j = 0 ; j < mesh.length ; j++) {
+                        features.push({"data": properties, "mesh": mesh[j]});
+                    }
+                }
+
+                for (i = 0 ; i < features.length ; i++) {
+                    var color = hslColor(Math.random(), 0, 1, 1);
+                    var material = new THREE.MeshLambertMaterial({color:  color}); 
+                            
+                    var height = Math.random() * heightFactor;
+                    var shape3d = features[i].mesh.extrude({amount: height, bevelEnabled: false});
+
+                    var toAdd = new THREE.Mesh(shape3d, material);
+                    toAdd.name = features[i].data.kreisname;
+                    toAdd.color = color;
+                    toAdd.rotation.x = Math.PI / 2;
+                    toAdd.translateX(TRANSLATE_WEST);
+                    toAdd.translateZ(- height - 3);
+                    toAdd.translateY(TRANSLATE_SOUTH);
+
+                    array.push(toAdd);
+                    scene.add(toAdd);
+                }
+            });
+        };
+
+        addGeoFeature("data/kreise.geojson", 50, kreise);
+
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+        var hoveredKreis;
+        function onDocumentMouseDown( event ) {
+            event.preventDefault();
+            mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+            mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+            raycaster.setFromCamera( mouse, camera );
+            var intersects = raycaster.intersectObjects( kreise );
+
+            if ( intersects.length > 0 ) {
+                var kreis = intersects[0].object;
+                if (typeof hoveredKreis != "undefined" && kreis != hoveredKreis) {
+                    hoveredKreis.material = new THREE.MeshLambertMaterial({color:  kreis.color});
+                };
+
+                kreis.material.color.setHex(0x0000FF);
+                jQuery('.info-overlay').text(kreis.name);
+                hoveredKreis = kreis;
+            };
+    };
+
+    function animate() {
+        /*jQuery('.camPosition').html("x: " + camera.position.x + "<br> y: " + camera.position.y + "<br> z: " + camera.position.z);*/
+        controls.update();
+        requestAnimationFrame( animate );
+        renderer.render( scene, camera );
+    };
+
+    init();
+    animate();
 
 	</script>
 </html>
